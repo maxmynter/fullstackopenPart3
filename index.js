@@ -58,7 +58,16 @@ app.delete("/api/persons/:id", (request, response) => {
 
 app.post("/api/persons/", (request, response) => {
   const newPerson = request.body;
-  console.log(newPerson);
+  if (!newPerson.name || !newPerson.number) {
+    return response.status(400).json({
+      error: "Name and number are mandatory fields. At least one is missing",
+    });
+  }
+  if (persons.map((person) => person.name).includes(newPerson.name)) {
+    response.status(400).json({
+      error: `Name ${newPerson.name} already exists in phonebook`,
+    });
+  }
   newPerson.id = Math.floor(Math.random() * 10000) + 1;
   persons = persons.concat(newPerson);
   response.status(200).end();
