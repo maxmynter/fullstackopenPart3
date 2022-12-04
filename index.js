@@ -26,7 +26,14 @@ let persons = [
 ];
 
 app.use(express.json());
-app.use(morgan("tiny"));
+morgan.token("req-body", (req, res) => {
+  return JSON.stringify(req.body);
+});
+app.use(
+  morgan(
+    ":method :url :status :res[content-length] - :response-time ms :req-body"
+  )
+);
 
 app.get("/", (request, response) => {
   response.send("<h1>Hello World!</h1>");
@@ -61,6 +68,7 @@ app.delete("/api/persons/:id", (request, response) => {
 
 app.post("/api/persons/", (request, response) => {
   const newPerson = request.body;
+
   if (!newPerson.name || !newPerson.number) {
     return response.status(400).json({
       error: "Name and number are mandatory fields. At least one is missing",
