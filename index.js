@@ -1,6 +1,6 @@
 const express = require("express");
+var morgan = require("morgan");
 const app = express();
-app.use(express.json());
 
 let persons = [
   {
@@ -24,6 +24,9 @@ let persons = [
     number: "39-23-6423122",
   },
 ];
+
+app.use(express.json());
+app.use(morgan("tiny"));
 
 app.get("/", (request, response) => {
   response.send("<h1>Hello World!</h1>");
@@ -62,15 +65,15 @@ app.post("/api/persons/", (request, response) => {
     return response.status(400).json({
       error: "Name and number are mandatory fields. At least one is missing",
     });
-  }
-  if (persons.map((person) => person.name).includes(newPerson.name)) {
+  } else if (persons.map((person) => person.name).includes(newPerson.name)) {
     response.status(400).json({
       error: `Name ${newPerson.name} already exists in phonebook`,
     });
+  } else {
+    newPerson.id = Math.floor(Math.random() * 10000) + 1;
+    persons = persons.concat(newPerson);
+    response.status(200).end();
   }
-  newPerson.id = Math.floor(Math.random() * 10000) + 1;
-  persons = persons.concat(newPerson);
-  response.status(200).end();
 });
 
 const PORT = 3001;
