@@ -64,7 +64,7 @@ app.get("/info", (request, response) => {
     .catch((err) => console.log(err));
 });
 
-app.get("/api/persons/:id", (request, response) => {
+app.get("/api/persons/:id", (request, response, next) => {
   const id = Number(request.params.id);
   mongoose
     .connect(url)
@@ -79,19 +79,21 @@ app.get("/api/persons/:id", (request, response) => {
         })
         .then(() => mongoose.connection.close());
     })
-    .catch((err) => console.log(err));
+    .catch((err) => next(err));
 });
 
-app.delete("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
+app.delete("/api/persons/:id", (request, response, next) => {
   mongoose
     .connect(url)
     .then(() => {
-      // ToDo: Make with MongoDB
-      persons = persons.filter((person) => person.id != id);
-      response.status(204).end();
+      Entries.findByIdAndRemove(request.params.id)
+        .then((result) => response.status(204).end())
+        .then(() => mongoose.connection.close())
+        .catch((error) => {
+          console.log(err);
+          response.status(400).send({ error: "malformatted id" });
+        });
     })
-    .then(() => mongoose.connection.close())
     .catch((err) => console.log(err));
 });
 
@@ -126,6 +128,26 @@ app.post("/api/persons/", (request, response) => {
     .then(() => response.status(200).end())
     .catch((err) => console.log(err));
 });
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+// handler of requests with unknown endpoint
+app.use(unknownEndpoint);
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  }
+
+  next(error);
+};
+
+// this has to be the last loaded middleware.
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
