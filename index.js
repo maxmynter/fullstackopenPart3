@@ -64,6 +64,23 @@ app.get("/info", (request, response) => {
     .catch((err) => console.log(err));
 });
 
+app.put("/api/persons/:id", (request, response) => {
+  const updatedEntry = request.body;
+  mongoose
+    .connect(url)
+    .then(() =>
+      Entries.findByIdAndUpdate(request.params.id, updatedEntry, {
+        new: true,
+      })
+        .then((updatedPerson) => response.json(updatedPerson))
+        .then(() => mongoose.connection.close())
+    )
+    .catch((err) => {
+      console.log(err);
+      return next(err);
+    });
+});
+
 app.get("/api/persons/:id", (request, response, next) => {
   const id = Number(request.params.id);
   mongoose
