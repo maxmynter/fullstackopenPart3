@@ -11,6 +11,11 @@ app.use(express.json());
 morgan.token("req-body", (req, res) => {
   return JSON.stringify(req.body);
 });
+var allowedOrigins = [
+  "http://localhost:3000",
+  "https://fullstackmooc.fly.dev/",
+];
+
 app.use(cors());
 app.use(express.static("build"));
 app.use(
@@ -20,8 +25,20 @@ app.use(
 );
 
 const phonebookEntrySchema = new mongoose.Schema({
-  name: String,
-  number: String,
+  name: {
+    type: String,
+    minLength: 3,
+    required: true,
+  },
+  number: {
+    type: String,
+    minLength: 8,
+    required: true,
+    validate: {
+      validator: (num) => /^\d{2,3}-\d+/.test(num),
+      message: (props) => `${props.value} is not a valid phone number!`,
+    },
+  },
 });
 
 phonebookEntrySchema.set("toJSON", {
@@ -114,36 +131,23 @@ app.delete("/api/persons/:id", (request, response, next) => {
     .catch((err) => console.log(err));
 });
 
-app.post("/api/persons/", (request, response) => {
+app.post("/api/persons/", (request, response, next) => {
   const newPerson = request.body;
   mongoose
     .connect(url)
     .then(() => {
-      if (!newPerson.name || !newPerson.number) {
-        throw response.status(400).json({
-          error:
-            "Name and number are mandatory fields. At least one is missing",
-        });
-      } else {
-        /*
-      else if (
-        Entries.find({ name: newPerson.name }).includes(newPerson.name)
-      ) {
-        throw response.status(400).json({
-          error: `Name ${newPerson.name} already exists in phonebook`,
-        });
-      }
-    */
-        const person = new Entries({
-          name: newPerson.name,
-          number: newPerson.number,
-        });
-        return person.save();
-      }
+      const person = new Entries({
+        name: newPerson.name,
+        number: newPerson.number,
+      });
+      return person.save().catch((error) => next(error));
     })
     .then(() => mongoose.connection.close())
     .then(() => response.status(200).end())
-    .catch((err) => console.log(err));
+    .catch((err) => {
+      console.log(err);
+      return next(err);
+    });
 });
 
 const unknownEndpoint = (request, response) => {
@@ -154,10 +158,12 @@ const unknownEndpoint = (request, response) => {
 app.use(unknownEndpoint);
 
 const errorHandler = (error, request, response, next) => {
-  console.error(error.message);
+  console.error("Error Handler Server", error.message);
 
   if (error.name === "CastError") {
     return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
   }
 
   next(error);
